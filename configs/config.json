@@ -1,0 +1,37 @@
+{
+  "paths": {
+    "raw_dir": "data/raw",
+    "processed_dir": "data/processed",
+    "report_csv": "reports/metrics_results.csv"
+  },
+  "random_seed": 42,
+  "noise": {
+    "enabled": true,
+    "sigma": 20.0
+  },
+  "gaussian": {
+    "kernel_size": 5,
+    "sigma": 1.2
+  },
+  "sobel": {
+    "threshold": 60,
+    "save_binary": true
+  },
+  "histogram_equalization": {
+    "levels": 256
+  },
+  "erosion": {
+    "kernel_size": 3,
+    "iterations": 1
+  },
+  "statistics": {
+    "entropy_bins": 256
+  },
+  "ssim": {
+    "window_size": 11,
+    "sigma": 1.5,
+    "k1": 0.01,
+    "k2": 0.03
+  },
+  "methods": ["gaussian", "sobel", "histogram_equalization", "erosion", "statistics"]
+}
