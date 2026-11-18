@@ -71,3 +71,37 @@ def test_sobel_horizontal_edge():
     gx, gy, _ = sobel_gradients(image)
     assert gx[1, 1] == pytest.approx(0.0)
     assert gy[1, 1] == pytest.approx(1020.0)
+
+
+def test_histogram_equalization_3x3():
+    """Рівні 10,20,30 по 3 пікселі: CDF = 3,6,9 -> 0,128,255."""
+    image = np.array([[10, 10, 10],
+                      [20, 20, 20],
+                      [30, 30, 30]], dtype=np.uint8)
+    expected = np.array([[0, 0, 0],
+                         [128, 128, 128],
+                         [255, 255, 255]], dtype=np.uint8)
+    assert np.array_equal(histogram_equalization(image), expected)
+
+
+def test_histogram_equalization_constant_image():
+    """Однотонне зображення не змінюється (немає ділення на нуль)."""
+    image = np.full((3, 3), 77, dtype=np.uint8)
+    assert np.array_equal(histogram_equalization(image), image)
+
+
+def test_erosion_removes_single_bright_pixel():
+    """Ерозія 3x3 видаляє ізольований яскравий піксель («зірку»)."""
+    image = np.zeros((3, 3), dtype=np.uint8)
+    image[1, 1] = 255
+    assert np.array_equal(erosion(image, 3), np.zeros((3, 3), dtype=np.uint8))
+
+
+def test_erosion_grayscale_minimum():
+    """Центр після ерозії = мінімум усього вікна 3x3."""
+    image = np.array([[9, 8, 7],
+                      [6, 5, 4],
+                      [3, 2, 1]], dtype=np.uint8)
+    result = erosion(image, 3)
+    assert result[1, 1] == 1
+    assert result[0, 0] == 5
