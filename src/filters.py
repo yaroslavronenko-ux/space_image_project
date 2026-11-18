@@ -81,3 +81,41 @@ def gaussian_blur(image, size=5, sigma=1.0):
     """
     blurred = convolve2d(image, gaussian_kernel(size, sigma))
     return np.clip(np.rint(blurred), 0, 255).astype(np.uint8)
+
+
+def sobel_gradients(image):
+    """Обчислює градієнти Собеля Gx, Gy та модуль градієнта.
+
+    Модуль: ``|G| = sqrt(Gx^2 + Gy^2)``.
+
+    Returns:
+        Кортеж ``(gx, gy, magnitude)`` у float64.
+    """
+    # Для Собеля використовуємо кореляцію (як у класичних підручниках):
+    # тому заздалегідь відображаємо ядро, щоб convolve2d повернула його назад.
+    gx = convolve2d(image, SOBEL_X[::-1, ::-1])
+    gy = convolve2d(image, SOBEL_Y[::-1, ::-1])
+    magnitude = np.sqrt(gx ** 2 + gy ** 2)
+    return gx, gy, magnitude
+
+
+def sobel_edges(image, threshold=None):
+    """Карта контурів Собеля.
+
+    Модуль градієнта лінійно нормується до [0, 255]. Якщо задано
+    ``threshold``, додатково повертається бінарна карта (255 — контур).
+
+    Returns:
+        Кортеж ``(magnitude_u8, binary_u8 | None)``.
+    """
+    _, _, magnitude = sobel_gradients(image)
+    max_value = magnitude.max()
+    if max_value > 0:
+        normalized = magnitude * (255.0 / max_value)
+    else:
+        normalized = np.zeros_like(magnitude)
+    magnitude_u8 = np.clip(np.rint(normalized), 0, 255).astype(np.uint8)
+    binary = None
+    if threshold is not None:
+        binary = np.where(magnitude_u8 >= threshold, 255, 0).astype(np.uint8)
+    return magnitude_u8, binary
