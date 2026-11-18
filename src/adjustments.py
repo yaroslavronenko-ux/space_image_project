@@ -42,3 +42,28 @@ def histogram_equalization(image, levels=256):
     lut = np.rint((cdf - cdf_min) / (total - cdf_min) * (levels - 1))
     lut = np.clip(lut, 0, levels - 1).astype(np.uint8)
     return lut[image]
+
+
+def erosion(image, kernel_size=3, iterations=1):
+    """Морфологічна ерозія квадратним структурним елементом.
+
+    Для напівтонових зображень ерозія — це мінімум у вікні
+    ``kernel_size x kernel_size``; для бінарних (0/255) результат
+    збігається з класичною бінарною ерозією. Краї доповнюються
+    максимальним значенням (255), щоб не створювати хибне «зношування»
+    біля меж кадру.
+    """
+    if kernel_size < 1 or kernel_size % 2 == 0:
+        raise ValueError("kernel_size має бути непарним додатним числом")
+    result = np.asarray(image, dtype=np.uint8).copy()
+    pad = kernel_size // 2
+    height, width = result.shape
+    for _ in range(max(1, int(iterations))):
+        padded = np.pad(result, pad, mode="constant", constant_values=255)
+        eroded = np.full((height, width), 255, dtype=np.uint8)
+        for row in range(kernel_size):
+            for col in range(kernel_size):
+                window = padded[row:row + height, col:col + width]
+                eroded = np.minimum(eroded, window)
+        result = eroded
+    return result
