@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Результати обробки генеруються скриптом main.py
+data/processed/*
+!data/processed/.gitkeep
+
+# IDE / ОС
+.idea/
+.vscode/
+Thumbs.db
+.DS_Store
