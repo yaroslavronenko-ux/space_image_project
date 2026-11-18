@@ -62,3 +62,69 @@ def psnr(reference, processed, max_value=255.0):
     if error == 0:
         return float("inf")
     return float(10.0 * math.log10(max_value ** 2 / error))
+
+
+SSIM_DEFAULTS = {"window_size": 11, "sigma": 1.5, "k1": 0.01, "k2": 0.03,
+                 "max_value": 255.0}
+
+
+def _local_moments(x, y, window):
+    """Локальні середні, дисперсії та коваріація у гаусовому вікні."""
+    mu_x = convolve2d(x, window)
+    mu_y = convolve2d(y, window)
+    var_x = convolve2d(x * x, window) - mu_x ** 2
+    var_y = convolve2d(y * y, window) - mu_y ** 2
+    cov_xy = convolve2d(x * y, window) - mu_x * mu_y
+    return mu_x, mu_y, var_x, var_y, cov_xy
+
+
+def _window_size(requested, shape):
+    """Непарний розмір вікна, що не перевищує меншу сторону зображення."""
+    size = min(int(requested), *shape)
+    if size % 2 == 0:
+        size -= 1
+    return max(size, 1)
+
+
+def ssim(reference, processed, params=None):
+    """Індекс структурної подібності (SSIM, Wang et al., 2004).
+
+    Локальні середні, дисперсії та коваріація обчислюються гаусовим вікном
+    за допомогою власної функції ``convolve2d``:
+
+    ``SSIM = ((2*mu_x*mu_y + C1)(2*sigma_xy + C2)) /
+    ((mu_x^2 + mu_y^2 + C1)(sigma_x^2 + sigma_y^2 + C2))``,
+
+    де ``C1 = (k1*L)^2``, ``C2 = (k2*L)^2``. Повертається середнє значення
+    карти SSIM. Для зображень, менших за вікно, розмір вікна зменшується.
+
+    Args:
+        reference, processed: зображення однакового розміру.
+        params: словник з ключами window_size, sigma, k1, k2, max_value
+            (відсутні ключі беруться з ``SSIM_DEFAULTS``).
+    """
+    cfg = {**SSIM_DEFAULTS, **(params or {})}
+    x = np.asarray(reference, dtype=np.float64)
+    y = np.asarray(processed, dtype=np.float64)
+    if x.shape != y.shape:
+        raise ValueError(f"Розміри зображень не збігаються: {x.shape} vs {y.shape}")
+
+    window = gaussian_kernel(_window_size(cfg["window_size"], x.shape), float(cfg["sigma"]))
+
+    c1 = (cfg["k1"] * cfg["max_value"]) ** 2
+    c2 = (cfg["k2"] * cfg["max_value"]) ** 2
+    mu_x, mu_y, var_x, var_y, cov_xy = _local_moments(x, y, window)
+
+    ssim_map = ((2 * mu_x * mu_y + c1) * (2 * cov_xy + c2)) / \
+        ((mu_x ** 2 + mu_y ** 2 + c1) * (var_x + var_y + c2))
+    return float(ssim_map.mean())
+
+
+def quality_metrics(reference, processed, ssim_params=None):
+    """Обчислює MSE, PSNR та SSIM однією функцією."""
+    params = ssim_params or {}
+    return {
+        "mse": mse(reference, processed),
+        "psnr": psnr(reference, processed),
+        "ssim": ssim(reference, processed, params),
+    }
