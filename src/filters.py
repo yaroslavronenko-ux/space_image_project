@@ -56,30 +56,81 @@ def convolve2d(image, kernel):
     return result
 
 
-def gaussian_kernel(size, sigma):
-    """Будує нормоване ядро Гауса розміру ``size x size``.
+def convolve_separable(image, kernel_1d):
+    """Згортка з сепарабельним ядром ``K = k * k^T`` двома 1D-проходами.
 
-    Формула: ``G(x, y) = exp(-(x^2 + y^2) / (2 * sigma^2))``,
-    після чого ядро ділиться на суму елементів (сума = 1).
+    Оптимізація: ядро Гауса розкладається на добуток двох одновимірних,
+    ``G(x, y) = g(x) * g(y)``, тому 2D-згортку ``size x size`` можна замінити
+    проходом по рядках і проходом по стовпцях. Кількість множень на піксель
+    падає з ``size^2`` до ``2 * size`` (для вікна SSIM 11x11: 121 -> 22).
+    Доповнення країв таке саме, як у ``convolve2d``, тож результат збігається
+    з нею до похибки округлення float64.
+
+    Args:
+        image: 2D масив.
+        kernel_1d: 1D ядро непарної довжини (симетричне ядро не потребує
+            відображення; несиметричне відображається як у згортці).
+
+    Returns:
+        Масив float64 того ж розміру, що й ``image``.
     """
+    image = np.asarray(image, dtype=np.float64)
+    kernel_1d = np.asarray(kernel_1d, dtype=np.float64).ravel()
+    if image.ndim != 2:
+        raise ValueError("convolve_separable очікує 2D зображення")
+    size = kernel_1d.size
+    if size % 2 == 0:
+        raise ValueError("Довжина ядра має бути непарною")
+
+    flipped = kernel_1d[::-1]
+    pad = size // 2
+    mode = "reflect" if min(image.shape) > pad else "edge"
+    height, width = image.shape
+
+    # Прохід 1: по рядках (уздовж осі x).
+    padded = np.pad(image, ((0, 0), (pad, pad)), mode=mode)
+    rows = np.zeros((height, width), dtype=np.float64)
+    for index in range(size):
+        rows += flipped[index] * padded[:, index:index + width]
+
+    # Прохід 2: по стовпцях (уздовж осі y).
+    padded = np.pad(rows, ((pad, pad), (0, 0)), mode=mode)
+    result = np.zeros((height, width), dtype=np.float64)
+    for index in range(size):
+        result += flipped[index] * padded[index:index + height, :]
+    return result
+
+
+def gaussian_kernel_1d(size, sigma):
+    """Нормоване одновимірне ядро Гауса: ``g(x) = exp(-x^2 / (2 * sigma^2))``."""
     if size < 1 or size % 2 == 0:
         raise ValueError("Розмір ядра Гауса має бути непарним додатним числом")
     if sigma <= 0:
         raise ValueError("sigma має бути > 0")
     half = size // 2
     axis = np.arange(-half, half + 1, dtype=np.float64)
-    xx, yy = np.meshgrid(axis, axis)
-    kernel = np.exp(-(xx ** 2 + yy ** 2) / (2.0 * sigma ** 2))
+    kernel = np.exp(-(axis ** 2) / (2.0 * sigma ** 2))
     return kernel / kernel.sum()
 
 
+def gaussian_kernel(size, sigma):
+    """Будує нормоване ядро Гауса розміру ``size x size``.
+
+    Формула: ``G(x, y) = exp(-(x^2 + y^2) / (2 * sigma^2))``, нормоване на суму.
+    Оскільки ``exp(-(x^2 + y^2)/(2 sigma^2)) = g(x) * g(y)``, 2D-ядро
+    дорівнює зовнішньому добутку двох 1D-ядер.
+    """
+    kernel_1d = gaussian_kernel_1d(size, sigma)
+    return np.outer(kernel_1d, kernel_1d)
+
+
 def gaussian_blur(image, size=5, sigma=1.0):
-    """Фільтр Гауса: згортка з нормованим гаусовим ядром.
+    """Фільтр Гауса: сепарабельна згортка з нормованим гаусовим ядром.
 
     Returns:
         Масив uint8 (значення округлені та обмежені [0, 255]).
     """
-    blurred = convolve2d(image, gaussian_kernel(size, sigma))
+    blurred = convolve_separable(image, gaussian_kernel_1d(size, sigma))
     return np.clip(np.rint(blurred), 0, 255).astype(np.uint8)
 
 
