@@ -42,3 +42,23 @@ def image_statistics(image, bins=256):
         "contrast": contrast(image),
         "entropy": entropy(image, bins),
     }
+
+
+def mse(reference, processed):
+    """Середньоквадратична помилка: MSE = (1/N) * sum (I - I')^2."""
+    ref = np.asarray(reference, dtype=np.float64)
+    proc = np.asarray(processed, dtype=np.float64)
+    if ref.shape != proc.shape:
+        raise ValueError(f"Розміри зображень не збігаються: {ref.shape} vs {proc.shape}")
+    return float(((ref - proc) ** 2).sum() / ref.size)
+
+
+def psnr(reference, processed, max_value=255.0):
+    """Пікове відношення сигнал/шум: PSNR = 10 * log10(MAX^2 / MSE).
+
+    Для ідентичних зображень (MSE = 0) повертає ``float('inf')``.
+    """
+    error = mse(reference, processed)
+    if error == 0:
+        return float("inf")
+    return float(10.0 * math.log10(max_value ** 2 / error))
