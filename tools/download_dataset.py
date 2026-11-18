@@ -33,7 +33,7 @@ TIMEOUT = 30
 QUERIES = (
     # Супутники та телескопи на орбіті (8)
     ("sat_01_hubble_release", "Hubble Space Telescope released from Space Shuttle"),
-    ("sat_02_hubble_sm4", "Hubble Space Telescope STS-125 servicing mission"),
+    ("sat_02_hubble_sm4", "Hubble Space Telescope backdropped by Earth STS-125 Atlantis"),
     ("sat_03_hubble_sm1", "Hubble Space Telescope STS-61 grapple"),
     ("sat_04_tdrs_deploy", "TDRS satellite deploy payload bay"),
     ("sat_05_chandra", "Chandra X-ray Observatory deploy STS-93"),
@@ -49,13 +49,13 @@ QUERIES = (
     ("mir_01_atlantis", "Mir space station photographed from Space Shuttle Atlantis"),
     ("skylab_01_orbit", "Skylab space station in Earth orbit"),
     # Ракети-носії при запуску (8)
-    ("rocket_01_saturn_v", "Apollo 11 Saturn V liftoff"),
+    ("rocket_01_saturn_v", "Apollo 11 launch Saturn V Launch Complex 39A"),
     ("rocket_02_shuttle_night", "Space Shuttle night launch"),
-    ("rocket_03_shuttle_day", "Space Shuttle Discovery liftoff"),
+    ("rocket_03_shuttle_day", "Space Shuttle Columbia STS-1 launch"),
     ("rocket_04_falcon9", "SpaceX Falcon 9 Crew Dragon launch"),
     ("rocket_05_falcon_heavy", "Falcon Heavy launch"),
     ("rocket_06_sls_artemis", "Artemis I Space Launch System launch"),
-    ("rocket_07_atlas_v", "Atlas V rocket launch"),
+    ("rocket_07_atlas_v", "United Launch Alliance Atlas V rocket lifts off"),
     ("rocket_08_delta_iv", "Delta IV Heavy launch"),
     # Марсоходи (7)
     ("rover_01_curiosity_selfie", "Curiosity rover selfie Mars"),
