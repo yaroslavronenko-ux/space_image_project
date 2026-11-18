@@ -174,3 +174,128 @@ def process_image(path, methods, config, rng, output_dir):
     """
     ctx = prepare_context(path, config, rng, output_dir)
     return [run_method(ctx, method, config, output_dir) for method in methods]
+
+
+def write_csv(path, rows):
+    """Записує детальні результати в CSV."""
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(path, "w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=CSV_FIELDS)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def summarize(rows):
+    """Середні значення метрик по кожному методу (для порівняння методів)."""
+    summary = []
+    methods = sorted({row["method"] for row in rows})
+    for method in methods:
+        subset = [row for row in rows if row["method"] == method]
+        entry = {"method": method, "images": len(subset)}
+        for key in ("time_ms", "mse", "psnr", "ssim", "mse_noisy_baseline",
+                    "mean", "contrast", "entropy"):
+            values = [float(row[key]) for row in subset
+                      if row[key] not in ("", "inf")]
+            entry[key] = f"{sum(values) / len(values):.4f}" if values else ""
+        summary.append(entry)
+    return summary
+
+
+def write_summary(path, summary):
+    """Записує зведену таблицю по методах."""
+    if not summary:
+        return
+    with open(path, "w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(summary[0].keys()))
+        writer.writeheader()
+        writer.writerows(summary)
+
+
+def plot_summary(path, summary):
+    """Будує стовпчикову діаграму середніх PSNR і SSIM по методах."""
+    try:
+        import matplotlib  # pylint: disable=import-outside-toplevel
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt  # pylint: disable=import-outside-toplevel
+    except ImportError:
+        LOGGER.warning("matplotlib не встановлено — графік не побудовано")
+        return
+    data = [item for item in summary if item["ssim"]]
+    if not data:
+        return
+    names = [item["method"] for item in data]
+    fig, (ax_psnr, ax_ssim) = plt.subplots(1, 2, figsize=(11, 4))
+    ax_psnr.bar(names, [float(item["psnr"] or 0) for item in data], color="#4C72B0")
+    ax_psnr.set_title("Середній PSNR, дБ")
+    ax_ssim.bar(names, [float(item["ssim"]) for item in data], color="#55A868")
+    ax_ssim.set_title("Середній SSIM")
+    ax_ssim.set_ylim(min(0.0, min(float(item["ssim"]) for item in data)), 1.0)
+    for axis in (ax_psnr, ax_ssim):
+        axis.tick_params(axis="x", rotation=20)
+    fig.tight_layout()
+    fig.savefig(path, dpi=120)
+    plt.close(fig)
+
+
+def resolve_paths(args, config):
+    """Обирає шляхи: аргументи командного рядка мають пріоритет над конфігом."""
+    paths = config.get("paths", {})
+    return (args.input or paths.get("raw_dir", "data/raw"),
+            args.output or paths.get("processed_dir", "data/processed"),
+            args.report or paths.get("report_csv", "reports/metrics_results.csv"))
+
+
+def save_reports(report_csv, rows):
+    """Зберігає детальний CSV, зведену таблицю та графік."""
+    write_csv(report_csv, rows)
+    summary = summarize(rows)
+    report_dir = os.path.dirname(report_csv) or "."
+    write_summary(os.path.join(report_dir, "metrics_summary.csv"), summary)
+    plot_summary(os.path.join(report_dir, "metrics_summary.png"), summary)
+
+
+def main(argv=None):
+    """Точка входу: читає конфіг, обробляє вибірку, зберігає метрики."""
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    args = parse_args(argv)
+    try:
+        config = load_config(args.config)
+    except (OSError, ValueError) as error:
+        LOGGER.error("Не вдалося прочитати конфіг %s: %s", args.config, error)
+        return 1
+
+    input_dir, output_dir, report_csv = resolve_paths(args, config)
+    methods = args.method or config.get("methods", list(ALL_METHODS))
+    unknown = [method for method in methods if method not in ALL_METHODS]
+    if unknown:
+        LOGGER.error("Невідомі методи в конфігу: %s", ", ".join(unknown))
+        return 1
+
+    images = list_images(input_dir)
+    if not images:
+        LOGGER.error("У каталозі %s немає зображень (.jpg/.png/.bmp/.tif)", input_dir)
+        return 1
+
+    rng = np.random.default_rng(int(config.get("random_seed", 42)))
+    rows, skipped = [], 0
+    for index, path in enumerate(images, start=1):
+        try:
+            rows.extend(process_image(path, methods, config, rng, output_dir))
+            LOGGER.info("[%d/%d] %s — OK", index, len(images), os.path.basename(path))
+        except (ValueError, OSError) as error:
+            skipped += 1
+            LOGGER.warning("[%d/%d] %s — пропущено: %s", index, len(images),
+                           os.path.basename(path), error)
+
+    if not rows:
+        LOGGER.error("Жодне зображення не оброблено")
+        return 1
+
+    save_reports(report_csv, rows)
+    LOGGER.info("Оброблено: %d, пропущено: %d", len(images) - skipped, skipped)
+    LOGGER.info("Метрики: %s", report_csv)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
