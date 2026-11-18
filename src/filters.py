@@ -54,3 +54,30 @@ def convolve2d(image, kernel):
             if coeff != 0.0:
                 result += coeff * padded[row:row + height, col:col + width]
     return result
+
+
+def gaussian_kernel(size, sigma):
+    """Будує нормоване ядро Гауса розміру ``size x size``.
+
+    Формула: ``G(x, y) = exp(-(x^2 + y^2) / (2 * sigma^2))``,
+    після чого ядро ділиться на суму елементів (сума = 1).
+    """
+    if size < 1 or size % 2 == 0:
+        raise ValueError("Розмір ядра Гауса має бути непарним додатним числом")
+    if sigma <= 0:
+        raise ValueError("sigma має бути > 0")
+    half = size // 2
+    axis = np.arange(-half, half + 1, dtype=np.float64)
+    xx, yy = np.meshgrid(axis, axis)
+    kernel = np.exp(-(xx ** 2 + yy ** 2) / (2.0 * sigma ** 2))
+    return kernel / kernel.sum()
+
+
+def gaussian_blur(image, size=5, sigma=1.0):
+    """Фільтр Гауса: згортка з нормованим гаусовим ядром.
+
+    Returns:
+        Масив uint8 (значення округлені та обмежені [0, 255]).
+    """
+    blurred = convolve2d(image, gaussian_kernel(size, sigma))
+    return np.clip(np.rint(blurred), 0, 255).astype(np.uint8)
