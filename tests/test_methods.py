@@ -14,7 +14,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # pylint: disable=wrong-import-position
 from src.adjustments import erosion, histogram_equalization
-from src.filters import convolve2d, gaussian_blur, gaussian_kernel, sobel_gradients
+from src.filters import (convolve2d, convolve_separable, gaussian_blur, gaussian_kernel,
+                         gaussian_kernel_1d, sobel_gradients)
 from src.metrics import contrast, entropy, mean_intensity, mse, psnr, ssim
 
 
@@ -50,6 +51,16 @@ def test_convolution_box_kernel():
     image = np.arange(9, dtype=np.float64).reshape(3, 3)
     result = convolve2d(image, np.ones((3, 3)))
     assert result[1, 1] == pytest.approx(36.0)
+
+
+def test_separable_matches_2d_convolution():
+    """Оптимізація: два 1D-проходи дають той самий результат, що й 2D-згортка."""
+    image = np.array([[10, 50, 90],
+                      [20, 200, 30],
+                      [70, 0, 255]], dtype=np.float64)
+    kernel_1d = gaussian_kernel_1d(3, 1.0)
+    expected = convolve2d(image, gaussian_kernel(3, 1.0))
+    assert np.allclose(convolve_separable(image, kernel_1d), expected)
 
 
 def test_sobel_vertical_edge():
