@@ -75,6 +75,7 @@ space_image_project/
 │   └── utils.py             # конфіг, I/O, перетворення в сірий, шум
 ├── configs/config.json      # усі параметри методів
 ├── tests/test_methods.py    # unit-тести на масивах 3×3
+├── tools/download_dataset.py  # завантаження вибірки з NASA Image Library
 ├── reports/                 # metrics_results.csv, metrics_summary.csv/.png
 ├── main.py                  # головний скрипт
 ├── requirements.txt
@@ -97,6 +98,22 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
+
+## Вибірка
+
+30 знімків з NASA Image Library (суспільне надбання), по групах: супутники й телескопи на
+орбіті (8), космічні станції (7), ракети-носії під час запуску (8), марсоходи (7). Групу видно
+з префікса імені файлу: `sat_`, `iss_`/`mir_`/`skylab_`, `rocket_`, `rover_`.
+
+Вибірку можна відтворити скриптом (потрібен інтернет):
+
+```bash
+python tools/download_dataset.py --dry-run   # переглянути, які знімки буде обрано
+python tools/download_dataset.py             # завантажити в data/raw/
+```
+
+Список джерел (назва, NASA ID, дата, посилання) зберігається у `data/sources.csv`.
+Повторний запуск докачує лише відсутні файли; невдалий знімок можна видалити й запустити знову.
 
 ## Запуск
 
