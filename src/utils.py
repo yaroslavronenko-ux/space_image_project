@@ -58,3 +58,40 @@ def to_grayscale(image):
         gray = 0.299 * red + 0.587 * green + 0.114 * blue
         return np.clip(np.rint(gray), 0, 255).astype(np.uint8)
     raise ValueError(f"Непідтримувана форма зображення: {image.shape}")
+
+
+def read_image(path):
+    """Читає зображення та повертає його у відтінках сірого (uint8).
+
+    Підтримує шляхи з кирилицею (через np.fromfile + cv2.imdecode).
+
+    Raises:
+        ValueError: файл порожній, пошкоджений або замалий.
+    """
+    if os.path.getsize(path) == 0:
+        raise ValueError("порожній файл")
+    raw = np.fromfile(path, dtype=np.uint8)
+    image = cv2.imdecode(raw, cv2.IMREAD_UNCHANGED)
+    if image is None:
+        raise ValueError("файл пошкоджений або формат не підтримується")
+    gray = to_grayscale(image)
+    if min(gray.shape) < MIN_SIDE:
+        raise ValueError(f"зображення замале: {gray.shape}")
+    return gray
+
+
+def save_image(path, image):
+    """Зберігає зображення (підтримує шляхи з кирилицею)."""
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    extension = os.path.splitext(path)[1] or ".png"
+    success, buffer = cv2.imencode(extension, image)
+    if not success:
+        raise IOError(f"Не вдалося закодувати {path}")
+    buffer.tofile(path)
+
+
+def add_gaussian_noise(image, sigma, rng):
+    """Додає адитивний гаусів шум N(0, sigma^2) з фіксованим генератором."""
+    noise = rng.normal(0.0, sigma, size=image.shape)
+    noisy = image.astype(np.float64) + noise
+    return np.clip(np.rint(noisy), 0, 255).astype(np.uint8)
