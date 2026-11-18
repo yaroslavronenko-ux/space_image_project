@@ -4,7 +4,7 @@ import math
 
 import numpy as np
 
-from src.filters import convolve2d, gaussian_kernel
+from src.filters import convolve_separable, gaussian_kernel_1d
 from src.adjustments import histogram
 
 
@@ -68,13 +68,17 @@ SSIM_DEFAULTS = {"window_size": 11, "sigma": 1.5, "k1": 0.01, "k2": 0.03,
                  "max_value": 255.0}
 
 
-def _local_moments(x, y, window):
-    """Локальні середні, дисперсії та коваріація у гаусовому вікні."""
-    mu_x = convolve2d(x, window)
-    mu_y = convolve2d(y, window)
-    var_x = convolve2d(x * x, window) - mu_x ** 2
-    var_y = convolve2d(y * y, window) - mu_y ** 2
-    cov_xy = convolve2d(x * y, window) - mu_x * mu_y
+def _local_moments(x, y, window_1d):
+    """Локальні середні, дисперсії та коваріація у гаусовому вікні.
+
+    Гаусове вікно сепарабельне, тож кожне усереднення виконується двома
+    1D-проходами (``convolve_separable``) замість 2D-згортки 11x11.
+    """
+    mu_x = convolve_separable(x, window_1d)
+    mu_y = convolve_separable(y, window_1d)
+    var_x = convolve_separable(x * x, window_1d) - mu_x ** 2
+    var_y = convolve_separable(y * y, window_1d) - mu_y ** 2
+    cov_xy = convolve_separable(x * y, window_1d) - mu_x * mu_y
     return mu_x, mu_y, var_x, var_y, cov_xy
 
 
@@ -90,7 +94,7 @@ def ssim(reference, processed, params=None):
     """Індекс структурної подібності (SSIM, Wang et al., 2004).
 
     Локальні середні, дисперсії та коваріація обчислюються гаусовим вікном
-    за допомогою власної функції ``convolve2d``:
+    за допомогою власної сепарабельної згортки ``convolve_separable``:
 
     ``SSIM = ((2*mu_x*mu_y + C1)(2*sigma_xy + C2)) /
     ((mu_x^2 + mu_y^2 + C1)(sigma_x^2 + sigma_y^2 + C2))``,
@@ -109,7 +113,8 @@ def ssim(reference, processed, params=None):
     if x.shape != y.shape:
         raise ValueError(f"Розміри зображень не збігаються: {x.shape} vs {y.shape}")
 
-    window = gaussian_kernel(_window_size(cfg["window_size"], x.shape), float(cfg["sigma"]))
+    window = gaussian_kernel_1d(_window_size(cfg["window_size"], x.shape),
+                                float(cfg["sigma"]))
 
     c1 = (cfg["k1"] * cfg["max_value"]) ** 2
     c2 = (cfg["k2"] * cfg["max_value"]) ** 2
