@@ -105,3 +105,28 @@ def test_erosion_grayscale_minimum():
     result = erosion(image, 3)
     assert result[1, 1] == 1
     assert result[0, 0] == 5
+
+
+def test_statistics_3x3():
+    """Середнє, контраст і ентропія для [0..8] обчислені вручну."""
+    image = np.arange(9, dtype=np.uint8).reshape(3, 3)
+    assert mean_intensity(image) == pytest.approx(4.0)
+    assert contrast(image) == pytest.approx(math.sqrt(60 / 9))
+    assert entropy(image) == pytest.approx(math.log2(9))
+
+
+def test_mse_and_psnr_3x3():
+    """Один піксель відрізняється на 3: MSE = 9/9 = 1, PSNR = 20*log10(255)."""
+    first = np.zeros((3, 3), dtype=np.uint8)
+    second = first.copy()
+    second[0, 0] = 3
+    assert mse(first, second) == pytest.approx(1.0)
+    assert psnr(first, second) == pytest.approx(20 * math.log10(255))
+    assert psnr(first, first) == float("inf")
+
+
+def test_ssim_identical_and_different():
+    """SSIM(x, x) = 1; для інвертованого зображення SSIM < 1."""
+    image = np.arange(9, dtype=np.uint8).reshape(3, 3) * 30
+    assert ssim(image, image) == pytest.approx(1.0)
+    assert ssim(image, 255 - image) < 0.5
