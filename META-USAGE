@@ -20,6 +20,9 @@ META-USAGE — декларація використання інструмен�
   tests/test_methods.py, requirements.txt, README.md, META-USAGE, а також
   bash-скрипт для формування історії гілок і комітів.»
 
+Запит 2: «Пришвидш» — після того, як інструмент повідомив, що вузьке місце
+  програми — обчислення SSIM (~1.2 с на порівняння кадру 1280×960).
+
 [Додайте сюди подальші запити, якщо уточнювали або змінювали код за допомогою ШІ.]
 
 3. Згенеровані фрагменти
@@ -32,6 +35,13 @@ META-USAGE — декларація використання інструмен�
   - requirements.txt, .pylintrc, .gitignore
   - README.md, цей файл (шаблон)
   - git_history.sh (допоміжний скрипт для організації історії комітів)
+
+За результатами запиту 2 згенеровано оптимізацію через сепарабельну згортку:
+  - src/filters.py: convolve_separable, gaussian_kernel_1d; gaussian_kernel і
+    gaussian_blur переписані на їх основі
+  - src/metrics.py: _local_moments і ssim використовують convolve_separable
+  - tests/test_methods.py: test_separable_matches_2d_convolution
+  - README.md: розділ «Оптимізація: сепарабельна згортка» із замірами
 
 [Позначте тут файли/функції, які ви змінили або дописали самостійно, і що саме.]
 
